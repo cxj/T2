@@ -1,0 +1,9 @@
+This is a punch clock like timer, designed to make it extremely easy for the user to start and stop time accumulated for listed projects.  I originally wrote this in 1991 using Sun's XView toolkit (http://en.wikipedia.org/wiki/XView) on a SPARCstation IPC.  I was working as a software engineer for a company that tracked development effort by various projects for payroll / timesheets, which were always a pain in the neck to fill out after the fact.  So I wrote this small, light applicaiton that would always be visible on my screen that I could easily clock-in / clock-out from as I worked on various projects.
+
+A few years later in 1994, I was working at a different company where IBM's AIX using Motif/CDE was the desktop environment for software developers who wanted it (other choice was Windows 3.11 -- ick!).  I had a similar need to track my time, but was not too interested in learning the AIX flavor of Motif's primitive (compared to elegant XView) API.  Instead, I discovered Tcl and Tk, and learned just enough to hack this thing together.
+
+Hence, this is probably the worst, ugliest piece of code I've written in the last 20 years.  It's been tweaked a few times since, but mostly I've not had the interest in becoming a Tcl/Tk guru to make it beautiful.  It works for me, and that's enough.
+
+If you would like to improve it, suggest changes or submit them, please do.  I hope you find it useful.
+
+Chris Johnson, October 2010.  http://drupal.org/user/2794
