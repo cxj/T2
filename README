@@ -1,4 +1,15 @@
-This is a punch clock like timer, designed to make it extremely easy for the user to start and stop time accumulated for listed projects.  I originally wrote this in 1991 using Sun's XView toolkit (http://en.wikipedia.org/wiki/XView) on a SPARCstation IPC.  I was working as a software engineer for a company that tracked development effort by various projects for payroll / timesheets, which were always a pain in the neck to fill out after the fact.  So I wrote this small, light applicaiton that would always be visible on my screen that I could easily clock-in / clock-out from as I worked on various projects.
+This is a punch clock like timer, designed to make it extremely easy for the user to start and stop time accumulated for listed projects.
+
+It requires a Tcl / Tk installation and probably the Wish shell to operate, but otherwise should work on any system upon which those prerequisites are installed.  I have used it on Mac OS X, various flavors of Linux with various desktop managers, AIX and Solaris all with no problems.
+
+The best way to learn how to use it is to try it out.  It's extremely simple.  One non-obvious feature might that one can create new projects by tying them in the text area at the top and hitting return.
+
+T2 will try to store its time records and project file list in a subdirectory of your home directory named .t2.
+
+History
+
+
+I originally wrote this in 1991 using Sun's XView toolkit (http://en.wikipedia.org/wiki/XView) on a SPARCstation IPC.  I was working as a software engineer for a company that tracked development effort by various projects for payroll / timesheets, which were always a pain in the neck to fill out after the fact.  So I wrote this small, light applicaiton that would always be visible on my screen that I could easily clock-in / clock-out from as I worked on various projects.
 
 A few years later in 1994, I was working at a different company where IBM's AIX using Motif/CDE was the desktop environment for software developers who wanted it (other choice was Windows 3.11 -- ick!).  I had a similar need to track my time, but was not too interested in learning the AIX flavor of Motif's primitive (compared to elegant XView) API.  Instead, I discovered Tcl and Tk, and learned just enough to hack this thing together.
 
