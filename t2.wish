@@ -1,0 +1,424 @@
+# T2, a Tcl/Tk GUI "punch clock" style project timer.
+# Copyright (C) 1992 - 1995  Chris Johnson
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+########################################################################
+# Various global declarations needed by subroutines.
+########################################################################
+
+# interval timers
+set seconds 0
+set hundredths 0
+
+# timing / project status
+set stopped 1
+set projnum 0                   ;# current project radiobutton selected
+set ptot 0                      ;# total number of known projects
+
+# time accumulators
+set hours 0
+set minutes 0
+
+# project list file
+set plist 0                     ;# eventual channelId when file is opened
+set plistname "~/.t2/projects"  ;# project list file name!
+
+# project time file
+set ptime 0                     ;# eventual channelId when file is opened
+set ptimename ""                ;# filename dynamically formed from date later
+
+# select preferred global font
+switch $tcl_platform(platform) "unix" {
+    if {$tcl_platform(os) eq "Darwin"} {
+        set font {-size 12}
+    } else {
+        set font {Helvetica 10}
+    }
+} "windows" {
+    set font {-family {MS Sans Serif} -size 7}
+}
+
+########################################################################
+# Subroutines.  
+########################################################################
+
+#
+# Open project list file.
+#
+proc openlistfile {plistname} {
+    if {![file isdirectory ~/.t2]} {
+        puts ".t2 directory does not exist, creating it"
+        file mkdir ~/.t2
+    }
+    if {[file exists $plistname]} {
+        # open existing project list file
+        puts "opening existing project file '$plistname'"
+    } else {
+        # create the new project list file
+        puts "project file '$plistname' does not exit, creating it"
+    }
+    set plist [open $plistname a+]
+    seek $plist 0 start
+    return $plist
+}
+
+#
+# Generate time file name for today.  Refactor.
+#
+proc gentimefilename {} {
+    set ptimename ~/.t2/
+    append ptimename [exec date +%d%b]           ;# refactor
+    return $ptimename
+}
+
+#
+# Open time output file.
+#
+proc inittimefile {plist} {
+    set ptimename [gentimefilename]
+    if {[file exists $ptimename] == 1} {
+        # open existing project times file
+        set ptime [open $ptimename a+]
+        readtimefile $ptime
+    } else {
+        # create a new project times file for this date
+        set ptime [open $ptimename a+]
+        newtimefile $ptime $plist
+    }
+    return $ptime
+}
+
+#
+# generic create a project selection button routine
+#
+proc makeproj {id} {
+    global timer label font 
+    set tmp [butlab $timer($id) $label($id)]
+    # radiobutton .b$id -anchor w -text $tmp -variable projnum -value $id \
+    #   -font $font
+    radiobutton .b$id -anchor w -text $tmp -variable projnum -value $id \
+        -font $font -command { dispupdate }
+# DEBUG
+puts "makeproj id = '$id'"
+# END DEBUG
+    pack .b$id -fill x -side top
+}
+
+#
+# format a label for the project selection button using time and project name
+#
+proc butlab {t s} {
+    set hours [expr {$t/3600}]
+    set minutes [expr {($t - ($hours * 3600))/60}]
+    set tval [format " %02d:%02d" $hours $minutes ]
+    format "%.6s  %s" $tval $s
+}
+
+#
+# dispupdate -- updates the time displayed on a button's label
+#
+proc dispupdate {} {
+    global timer label projnum ptot
+
+    set newlab [butlab $timer($projnum) $label($projnum)]
+    .b$projnum configure -text $newlab -background "yellow2"
+
+    set total 0
+    for {set i 1} { $i <= $ptot} {incr i 1} {
+        incr total $timer($i)
+        if {$i != $projnum} {
+            .b$i configure -background white
+        }
+    }
+    set newlab [butlab $total TOTAL]
+    .tot configure -text $newlab
+}
+
+#
+# main timer routine
+#
+proc tick {} {
+    global seconds hundredths stopped projnum timer ptot
+
+    if $stopped return
+    if {$ptot == 0} return
+    if {$projnum == 0} return
+
+    after 200 tick
+    set hundredths [expr {$hundredths+200}]
+
+    if {$hundredths >= 1000} {
+        set hundredths 0
+        set seconds [expr {$seconds+1}]
+        if {$seconds >= 60} {
+            set seconds 0
+            incr timer($projnum) 60
+            dispupdate
+            checkpoint
+        }
+    }
+}
+
+#
+# exit/quit routine.  output accumulated project times and project list.
+#
+proc quitnow {} {
+    checkpoint
+    destroy .
+}
+
+#
+# project time and project list checkpoint routine.
+#
+proc checkpoint {} {
+    global ptot ptime plist label
+
+    # position file pointers to start to overwrite existing contents
+    seek $ptime 0 start
+    seek $plist 0 start
+
+    # output a header for project times file
+    set line [format " %-50.50s" "Time   Project Name" ]
+    puts $ptime $line
+
+    # for each project, write times and project to appropriate files
+    for {set i 1}  {$i <= $ptot}  {incr i} {
+        # Times:
+        set line [format " %-50.50s" [lindex [.b$i configure -text] 4]]
+        puts $ptime $line
+
+        # Project names:
+        puts $plist $label($i)
+    }
+    flush $ptime
+    flush $plist
+}
+
+#
+# delete currently selected entry from the list of projects
+#
+proc delproj {} {
+    global stopped projnum ptot plist ptime label plistname
+
+# DEBUG
+puts "delproj called with projnum = '$projnum' and ptot = '$ptot' "
+# END DEBUG
+
+    if {$projnum == 0} return
+    if {$stopped == 0} return
+    if {$ptot == 0} return
+
+    # loop through all projects and omit the one being deleted, writing
+    # the rest out to the project list and project times files, and then
+    # re-initialize the datastructures from those files, as at startup.
+
+    # truncate existing files
+    set plist [open $plistname w]
+    set ptimename [gentimefilename]
+    set ptime [open $ptimename w]
+
+    for {set i 1}  {$i <= $ptot}  {incr i} {
+# DEBUG
+puts "loop index i = '$i'"
+# END DEBUG
+        if {$i == $projnum} {
+            # this is the one to delete
+            puts "skipping in order to delete projnum '$i'"
+            destroy .b$i                    ;# we re-init all buttons below
+            continue                        ;# go to next project
+        }
+# DEBUG
+puts "rewriting projnum '$i'"
+# END DEBUG
+        # format time for project times file
+        set line [format "%-50.50s" [lindex [.b$i configure -text] 4]]
+        puts $ptime $line
+        # project name to project list file
+        puts $plist $label($i)
+        destroy .b$i                        ;# we re-init all buttons below
+    }
+
+    # reinitialize
+    close $plist
+    close $ptime
+    set plist [openlistfile $plistname]
+    set ptime [inittimefile $plist]
+    set projnum 0
+# DEBUG
+puts "ptot now = $ptot"
+puts "projnum = $projnum"
+# END DEBUG
+    focus .
+}
+
+#
+# Open an existing project times file
+#
+proc readtimefile {ptime} {
+    global ptot timer label                     ;# initialized here!
+    seek $ptime 0 start
+    # Read list of times and create selection buttons for them
+    set ptot 0
+    while {[gets $ptime line] >= 0} {
+        if {[string length $line] < 9} continue
+        if {[string first " Time" $line] == 0} continue
+        incr ptot
+        scan $line "%d:%d" hours minutes
+        set project [string range $line 8 end]
+        set project [string trim $project]
+        set timer($ptot) [expr {$hours * 3600 + $minutes * 60}]
+        set label($ptot) $project
+        # create a project widget
+        makeproj $ptot
+    }
+}
+
+#
+# Intialize a new project times file
+#
+proc newtimefile {ptime plist} {
+    global ptot timer label                     ;# initialized here!
+    # Read list of projects and create selection buttons for them
+    set ptot 0
+    while {[gets $plist line] >= 0} {
+        incr ptot
+        set timer($ptot) 0
+        set label($ptot) $line
+        # create a project widget
+        makeproj $ptot
+    }
+}
+
+########################################################################
+#
+# MAINLINE code
+#
+########################################################################
+
+# create a frame at the bottom to collect the control buttons
+frame .bottom
+pack .bottom -side bottom -fill both -anchor s
+frame .row1 
+frame .row2
+pack .row1 -side top -in .bottom -fill x -anchor n
+pack .row2 -side bottom -in .bottom -fill x -anchor s
+
+# create the control buttons
+button .run -text Run -font $font -state disabled -command {
+    if {$projnum == 0} {
+        return
+    }
+    if $stopped {
+        set stopped 0
+        .entry configure -background "light sea green"
+        .run configure -state disabled
+        .del configure -state disabled
+        .pause configure -state normal
+        tick
+    }
+}
+button .pause -text Pause -font $font -state disabled -command {
+    set stopped 1
+    .run configure -state normal
+    .del configure -state normal
+    .pause configure -state disabled
+    .entry configure -background white
+    dispupdate
+}
+button .quit -text Quit -padx 1m -command {quitnow} -font $font
+button .del -text Delete -padx 1m -command {delproj} -font $font
+
+button .add20 -text "+20" -font $font -command {
+    if {$projnum == 0} {
+        return
+    }
+    incr timer($projnum) 1200
+    dispupdate
+}
+
+button .add5 -text "+5" -font $font -command {
+    if {$projnum == 0} {
+        return
+    }
+    incr timer($projnum) 300
+    dispupdate
+}
+
+button .zero -text Zero -font $font -command {
+    if {$projnum == 0} {
+        return
+    }
+    set timer($projnum) 0
+    dispupdate
+}
+
+button .sub5 -text "-5" -font $font -command {
+    if {$projnum == 0} {
+        return
+    }
+    incr timer($projnum) -300
+    dispupdate
+}
+
+button .sub20 -text "-20" -font $font -command {
+    if {$projnum == 0} {
+        return
+    }
+    incr timer($projnum) -1200
+    dispupdate
+}
+
+# create a text entry widget to add new projects
+entry .entry -width 30 -relief sunken -textvariable cmd -font $font
+pack .entry -padx 2m -pady 2m
+bind .entry <Return> {
+    if {$ptot == 0} {
+        .run configure -state normal
+    }
+    set ptot [expr {$ptot + 1}]
+    set label($ptot) $cmd
+    set timer($ptot) 0
+    # create a project widget
+    makeproj $ptot
+    .entry delete 0 end
+    focus .b$ptot
+}
+
+# format and pack things up and realize them
+pack .run -fill x -side left
+pack .pause -fill x -side right 
+pack .add20 .add5 .zero .sub5 .sub20 -in .row1 -side left -fill x -expand yes
+pack .run .pause .quit .del -in .row2 -side left -fill x -expand yes
+
+# create a total label before creating project buttons
+label .tot -anchor w -text [butlab 0 TOTAL] -font $font
+pack .tot -fill x -side bottom
+
+# open global project list channel
+set plist [openlistfile $plistname]
+
+# initialize the global project time file and channel for today
+set ptime [inittimefile $plist]
+
+
+#
+# Rock
+#
+if {$ptot > 0} {
+    .run configure -state normal
+}
+bind . <Control-c> {destroy .}
+bind . <Control-q> {destroy .}
+focus .

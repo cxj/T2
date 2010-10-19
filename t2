@@ -1,0 +1,3 @@
+#!/bin/sh
+#exec /usr/bin/wish -f ~/bin/t2.wish &
+/usr/bin/wish -f ~/bin/t2.wish &
