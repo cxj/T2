@@ -15,5 +15,3 @@ In 1994, I was working at a different company where IBM's AIX using Motif/CDE wa
 Hence, this is probably the worst, ugliest piece of code I've written in the last 20 years.  It's been tweaked a few times since, but mostly I've not had the interest in becoming a Tcl/Tk guru to make it beautiful.  It works for me, and that's enough.
 
 If you would like to improve it, suggest changes or submit them, please do.  I hope you find it useful.
-
-Chris Johnson, October 2010.  http://drupal.org/user/2794
